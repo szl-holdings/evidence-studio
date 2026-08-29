@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Evidence Studio — merge sink</title>
+  <style>
+    :root { --bg:#07090d; --fg:#e8edf2; --muted:#8b95a3; --accent:#3af4c8; --gold:#e8c074; --halt:#e07a6a; --line:rgba(232,237,242,.12); --surf:#0d1520; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 "Segoe UI",system-ui,sans-serif; }
+    header, main { max-width:980px; margin:0 auto; padding:24px 20px; }
+    h1 { font-family: Georgia, serif; font-weight:500; letter-spacing:-.03em; }
+    .kicker { font:11px/1 ui-monospace,Menlo,monospace; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
+    .grid { display:grid; gap:10px; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+    .card { background:var(--surf); border:1px solid var(--line); border-radius:16px; padding:14px; cursor:pointer; text-align:left; color:inherit; }
+    a { color:var(--accent); }
+    pre { white-space:pre-wrap; word-break:break-word; font:12px/1.45 ui-monospace,Menlo,monospace; color:var(--gold); min-height:8rem; background:#101824; border:1px solid var(--line); padding:14px; }
+    .muted { color:var(--muted); font-size:13px; }
+    .chip { display:inline-block; border:1px solid var(--line); padding:3px 8px; font:10px ui-monospace,monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:0 6px 6px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">one writer · BIND_AS_A11OY_PACKAGE · not a flagship</p>
+    <h1>Evidence Studio</h1>
+    <p class="muted">Canonical merge sink. Click a packet to append an UNSIGNED-honest receipt. Unknown packets fail closed. Source Spaces stay listed — this sink does not delete them. Energy UNAVAILABLE. Λ = Conjecture 1.</p>
+    <p>
+      <span class="chip">STRUCTURAL-ONLY</span>
+      <span class="chip">UNSIGNED-honest</span>
+      <span class="chip">not Cosign</span>
+    </p>
+  </header>
+  <main>
+    <div class="grid" id="packets"></div>
+    <section style="margin-top:16px">
+      <h2>Receipt</h2>
+      <pre id="out">select a packet</pre>
+    </section>
+    <p class="muted">Flagship: <a href="https://huggingface.co/spaces/SZLHOLDINGS/a11oy">a11oy</a>. Source: <a href="https://github.com/szl-holdings/evidence-studio">szl-holdings/evidence-studio</a>.</p>
+  </main>
+  <script>
+    const box = document.getElementById("packets");
+    const out = document.getElementById("out");
+    async function load() {
+      const packets = await (await fetch("/api/packets")).json();
+      box.innerHTML = packets.map(p =>
+        `<button class="card" data-id="${p.id}">
+           <b>${p.id}</b>
+           <div class="muted">${p.class} · ${p.hub}</div>
+         </button>`
+      ).join("") + `<button class="card" data-id="not-a-packet"><b>unknown</b><div class="muted">fail closed</div></button>`;
+      box.querySelectorAll("button").forEach(b => b.onclick = () => merge(b.dataset.id));
+    }
+    async function merge(id) {
+      const r = await fetch("/api/merge", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({packet:id, evidence:"studio bind"}) });
+      out.textContent = JSON.stringify(await r.json(), null, 2);
+    }
+    load().catch(err => { out.textContent = String(err); });
+  </script>
+</body>
+</html>
