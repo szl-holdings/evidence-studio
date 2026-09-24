@@ -17,9 +17,14 @@ Canonical merge sink for holographic and receipt Spaces. **One writer.**
 Packet sources stay listed. This Space does not delete them.
 
 POST `/api/merge` accepts a known packet id and returns an UNSIGNED-honest
-receipt. Unknown packets fail closed. Energy UNAVAILABLE. Λ = Conjecture 1.
+receipt. The sink serializes accepted writes onto its server-authoritative
+ledger head. A supplied `prev_hash` must be canonical lowercase SHA-256 hex and
+must equal the current head; malformed or stale ancestry fails closed and is
+not appended. Unknown packets fail closed. Energy UNAVAILABLE. Λ = Conjecture 1.
 
-Not a second flagship. Not live inference. BIND_AS_A11OY_PACKAGE.
+The ledger is process-local structural evidence, not a durable datastore or a
+cryptographic signature. Not a second flagship. Not live inference.
+BIND_AS_A11OY_PACKAGE.
 
 Source: [szl-holdings/evidence-studio](https://github.com/szl-holdings/evidence-studio).
 Hub writes go through Immune.
