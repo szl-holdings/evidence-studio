@@ -23,7 +23,7 @@
   <header>
     <p class="kicker">one writer · BIND_AS_A11OY_PACKAGE · not a flagship</p>
     <h1>Evidence Studio</h1>
-    <p class="muted">Canonical merge sink. Click a packet to append an UNSIGNED-honest receipt. Unknown packets fail closed. Source Spaces stay listed — this sink does not delete them. Energy UNAVAILABLE. Λ = Conjecture 1.</p>
+    <p class="muted">Public read-only packet catalog. Select a packet to inspect its metadata; no receipt is created. Ledger writes require an authenticated backend. Source Spaces stay listed — this sink does not delete them. Energy UNAVAILABLE. Λ = Conjecture 1.</p>
     <p>
       <span class="chip">STRUCTURAL-ONLY</span>
       <span class="chip">UNSIGNED-honest</span>
@@ -33,7 +33,7 @@
   <main>
     <div class="grid" id="packets"></div>
     <section style="margin-top:16px">
-      <h2>Receipt</h2>
+      <h2>Packet metadata — not a receipt</h2>
       <pre id="out">select a packet</pre>
     </section>
     <p class="muted">Flagship: <a href="https://huggingface.co/spaces/SZLHOLDINGS/a11oy">a11oy</a>. Source: <a href="https://github.com/szl-holdings/evidence-studio">szl-holdings/evidence-studio</a>.</p>
@@ -48,12 +48,11 @@
            <b>${p.id}</b>
            <div class="muted">${p.class} · ${p.hub}</div>
          </button>`
-      ).join("") + `<button class="card" data-id="not-a-packet"><b>unknown</b><div class="muted">fail closed</div></button>`;
-      box.querySelectorAll("button").forEach(b => b.onclick = () => merge(b.dataset.id));
-    }
-    async function merge(id) {
-      const r = await fetch("/api/merge", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({packet:id, evidence:"studio bind"}) });
-      out.textContent = JSON.stringify(await r.json(), null, 2);
+      ).join("");
+      box.querySelectorAll("button").forEach(b => b.onclick = () => {
+        const packet = packets.find(p => p.id === b.dataset.id);
+        out.textContent = JSON.stringify({packet, mode: "read-only", receipt_created: false}, null, 2);
+      });
     }
     load().catch(err => { out.textContent = String(err); });
   </script>
