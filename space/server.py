@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
+import re
+import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +15,8 @@ from urllib.parse import urlparse
 
 HTML = Path(__file__).with_name("index.html")
 GENESIS = "0" * 64
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
+MAX_REQUEST_BYTES = 16384
 
 SOURCES = (
     {"id": "holographic", "hub": "SZLHOLDINGS/holographic", "class": "hologram"},
@@ -29,6 +34,7 @@ SOURCES = (
 )
 KNOWN = {s["id"]: s for s in SOURCES}
 LEDGER: list[dict] = []
+_LEDGER_LOCK = threading.Lock()
 
 
 def _sha256(payload: dict) -> str:
@@ -36,53 +42,83 @@ def _sha256(payload: dict) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
-def merge(packet: str, evidence: str, prev: str) -> dict:
-    key = (packet or "").strip()
-    src = KNOWN.get(key)
-    prev_h = prev if isinstance(prev, str) and len(prev) == 64 else (
-        LEDGER[-1]["hash"] if LEDGER else GENESIS
-    )
-    if src is None:
-        body = {
-            "id": str(uuid.uuid4()),
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "organ": "circulatory",
-            "action": "merge",
-            "decision": "BLOCKED",
-            "packet": key or "<empty>",
-            "honesty_tier": "UNAVAILABLE",
-            "lambda_status": "Conjecture 1",
-            "energy": None,
-            "signer": "UNSIGNED-honest",
-            "bind": "BIND_AS_A11OY_PACKAGE",
-            "flagship": "a11oy",
-            "prev_hash": prev_h,
-            "note": "Unknown packet. Fail closed. This sink does not mint sources.",
-        }
-        body["hash"] = _sha256(body)
-        return body
+def _head_hash() -> str:
+    return LEDGER[-1]["hash"] if LEDGER else GENESIS
+
+
+def _blocked(packet: str, prev_hash: str, note: str) -> dict:
     body = {
         "id": str(uuid.uuid4()),
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "organ": "circulatory",
         "action": "merge",
-        "decision": "ALLOW",
-        "packet": src["id"],
-        "hub": src["hub"],
-        "class": src["class"],
-        "evidence": (evidence or "")[:480],
-        "honesty_tier": "STRUCTURAL-ONLY",
+        "decision": "BLOCKED",
+        "packet": packet or "<empty>",
+        "honesty_tier": "UNAVAILABLE",
         "lambda_status": "Conjecture 1",
         "energy": None,
         "signer": "UNSIGNED-honest",
         "bind": "BIND_AS_A11OY_PACKAGE",
         "flagship": "a11oy",
-        "prev_hash": prev_h,
-        "note": "One writer. Source Space stays listed. Hash is tamper-evident, not a signature.",
+        "prev_hash": prev_hash,
+        "note": note,
     }
     body["hash"] = _sha256(body)
-    LEDGER.append(body)
     return body
+
+
+def merge(packet: str, evidence: str, prev: str) -> dict:
+    key = (packet or "").strip()
+    src = KNOWN.get(key)
+
+    with _LEDGER_LOCK:
+        head = _head_hash()
+        requested = prev
+        if not isinstance(requested, str):
+            return _blocked(key, head, "Invalid prev_hash. Expected a string.")
+        if requested:
+            if HEX64.fullmatch(requested) is None:
+                return _blocked(
+                    key,
+                    head,
+                    "Invalid prev_hash. Expected canonical lowercase sha256 hex.",
+                )
+            if requested != head:
+                return _blocked(
+                    key,
+                    head,
+                    "prev_hash does not match the authoritative ledger head. Fail closed.",
+                )
+
+        if src is None:
+            return _blocked(
+                key,
+                head,
+                "Unknown packet. Fail closed. This sink does not mint sources.",
+            )
+
+        body = {
+            "id": str(uuid.uuid4()),
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "organ": "circulatory",
+            "action": "merge",
+            "decision": "ALLOW",
+            "packet": src["id"],
+            "hub": src["hub"],
+            "class": src["class"],
+            "evidence": (evidence or "")[:480],
+            "honesty_tier": "STRUCTURAL-ONLY",
+            "lambda_status": "Conjecture 1",
+            "energy": None,
+            "signer": "UNSIGNED-honest",
+            "bind": "BIND_AS_A11OY_PACKAGE",
+            "flagship": "a11oy",
+            "prev_hash": head,
+            "note": "One writer. Source Space stays listed. Hash is tamper-evident, not a signature.",
+        }
+        body["hash"] = _sha256(body)
+        LEDGER.append(body)
+        return body
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -137,21 +173,76 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path
-        n = int(self.headers.get("Content-Length") or 0)
-        raw = self.rfile.read(n) if n else b"{}"
-        try:
-            data = json.loads(raw.decode() or "{}")
-        except Exception:
-            data = {}
-        if path == "/api/merge":
-            rec = merge(
-                str(data.get("packet") or ""),
-                str(data.get("evidence") or ""),
-                str(data.get("prev_hash") or ""),
-            )
-            self._send(200, json.dumps(rec).encode(), "application/json")
+        if path != "/api/merge":
+            self._send(404, b"not found", "text/plain")
             return
-        self._send(404, b"not found", "text/plain")
+
+        def reject(status: int, error: str) -> None:
+            self._send(status, json.dumps({"error": error}).encode(), "application/json")
+
+        # The public UI is read-only. This credential is for a trusted backend,
+        # never browser storage, HTML, logs, or a receipt.
+        token = os.environ.get("EVIDENCE_STUDIO_WRITE_TOKEN", "")
+        if len(token.encode()) < 32 or any(char.isspace() for char in token):
+            reject(503, "WRITER_NOT_CONFIGURED")
+            return
+        authorizations = self.headers.get_all("Authorization", [])
+        if len(authorizations) != 1 or not hmac.compare_digest(
+            authorizations[0].encode(), ("Bearer " + token).encode()
+        ):
+            reject(401, "WRITER_AUTH_REQUIRED")
+            return
+        if self.headers.get_all("Transfer-Encoding"):
+            reject(400, "TRANSFER_ENCODING_UNSUPPORTED")
+            return
+        lengths = self.headers.get_all("Content-Length", [])
+        if not lengths:
+            reject(411, "CONTENT_LENGTH_REQUIRED")
+            return
+        if len(lengths) != 1 or not lengths[0].isascii() or not lengths[0].isdecimal():
+            reject(400, "INVALID_CONTENT_LENGTH")
+            return
+        # Avoid unbounded integer conversion even for malicious header text.
+        if len(lengths[0]) > 8 or int(lengths[0]) > MAX_REQUEST_BYTES:
+            reject(413, "REQUEST_TOO_LARGE")
+            return
+        n = int(lengths[0])
+        if self.headers.get_content_type() != "application/json":
+            reject(415, "JSON_REQUIRED")
+            return
+        self.connection.settimeout(5)
+        try:
+            raw = self.rfile.read(n)
+        except (TimeoutError, OSError):
+            reject(408, "REQUEST_BODY_TIMEOUT")
+            return
+
+        def unique_object(pairs: list) -> dict:
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise ValueError("duplicate key")
+                result[key] = value
+            return result
+
+        def reject_constant(value: str) -> None:
+            raise ValueError("non-JSON numeric constant")
+
+        try:
+            data = json.loads(
+                raw.decode(), object_pairs_hook=unique_object, parse_constant=reject_constant
+            )
+            if len(raw) != n or not isinstance(data, dict):
+                raise ValueError("object required")
+            if any(not isinstance(data.get(key, ""), str) for key in (
+                "packet", "evidence", "prev_hash"
+            )):
+                raise ValueError("string fields required")
+        except (ValueError, RecursionError):
+            reject(400, "INVALID_JSON_OBJECT")
+            return
+        rec = merge(data.get("packet", ""), data.get("evidence", ""), data.get("prev_hash", ""))
+        self._send(200, json.dumps(rec).encode(), "application/json")
 
 
 def main() -> None:
