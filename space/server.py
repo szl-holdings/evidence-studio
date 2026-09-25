@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +14,7 @@ from urllib.parse import urlparse
 
 HTML = Path(__file__).with_name("index.html")
 GENESIS = "0" * 64
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
 SOURCES = (
     {"id": "holographic", "hub": "SZLHOLDINGS/holographic", "class": "hologram"},
@@ -29,6 +32,7 @@ SOURCES = (
 )
 KNOWN = {s["id"]: s for s in SOURCES}
 LEDGER: list[dict] = []
+_LEDGER_LOCK = threading.Lock()
 
 
 def _sha256(payload: dict) -> str:
@@ -36,53 +40,81 @@ def _sha256(payload: dict) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
-def merge(packet: str, evidence: str, prev: str) -> dict:
-    key = (packet or "").strip()
-    src = KNOWN.get(key)
-    prev_h = prev if isinstance(prev, str) and len(prev) == 64 else (
-        LEDGER[-1]["hash"] if LEDGER else GENESIS
-    )
-    if src is None:
-        body = {
-            "id": str(uuid.uuid4()),
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-            "organ": "circulatory",
-            "action": "merge",
-            "decision": "BLOCKED",
-            "packet": key or "<empty>",
-            "honesty_tier": "UNAVAILABLE",
-            "lambda_status": "Conjecture 1",
-            "energy": None,
-            "signer": "UNSIGNED-honest",
-            "bind": "BIND_AS_A11OY_PACKAGE",
-            "flagship": "a11oy",
-            "prev_hash": prev_h,
-            "note": "Unknown packet. Fail closed. This sink does not mint sources.",
-        }
-        body["hash"] = _sha256(body)
-        return body
+def _head_hash() -> str:
+    return LEDGER[-1]["hash"] if LEDGER else GENESIS
+
+
+def _blocked(packet: str, prev_hash: str, note: str) -> dict:
     body = {
         "id": str(uuid.uuid4()),
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "organ": "circulatory",
         "action": "merge",
-        "decision": "ALLOW",
-        "packet": src["id"],
-        "hub": src["hub"],
-        "class": src["class"],
-        "evidence": (evidence or "")[:480],
-        "honesty_tier": "STRUCTURAL-ONLY",
+        "decision": "BLOCKED",
+        "packet": packet or "<empty>",
+        "honesty_tier": "UNAVAILABLE",
         "lambda_status": "Conjecture 1",
         "energy": None,
         "signer": "UNSIGNED-honest",
         "bind": "BIND_AS_A11OY_PACKAGE",
         "flagship": "a11oy",
-        "prev_hash": prev_h,
-        "note": "One writer. Source Space stays listed. Hash is tamper-evident, not a signature.",
+        "prev_hash": prev_hash,
+        "note": note,
     }
     body["hash"] = _sha256(body)
-    LEDGER.append(body)
     return body
+
+
+def merge(packet: str, evidence: str, prev: str) -> dict:
+    key = (packet or "").strip()
+    src = KNOWN.get(key)
+
+    with _LEDGER_LOCK:
+        head = _head_hash()
+        requested = prev.strip() if isinstance(prev, str) else ""
+        if requested:
+            if HEX64.fullmatch(requested) is None:
+                return _blocked(
+                    key,
+                    head,
+                    "Invalid prev_hash. Expected canonical lowercase sha256 hex.",
+                )
+            if requested != head:
+                return _blocked(
+                    key,
+                    head,
+                    "prev_hash does not match the authoritative ledger head. Fail closed.",
+                )
+
+        if src is None:
+            return _blocked(
+                key,
+                head,
+                "Unknown packet. Fail closed. This sink does not mint sources.",
+            )
+
+        body = {
+            "id": str(uuid.uuid4()),
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "organ": "circulatory",
+            "action": "merge",
+            "decision": "ALLOW",
+            "packet": src["id"],
+            "hub": src["hub"],
+            "class": src["class"],
+            "evidence": (evidence or "")[:480],
+            "honesty_tier": "STRUCTURAL-ONLY",
+            "lambda_status": "Conjecture 1",
+            "energy": None,
+            "signer": "UNSIGNED-honest",
+            "bind": "BIND_AS_A11OY_PACKAGE",
+            "flagship": "a11oy",
+            "prev_hash": head,
+            "note": "One writer. Source Space stays listed. Hash is tamper-evident, not a signature.",
+        }
+        body["hash"] = _sha256(body)
+        LEDGER.append(body)
+        return body
 
 
 class Handler(BaseHTTPRequestHandler):
