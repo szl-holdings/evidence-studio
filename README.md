@@ -16,6 +16,13 @@ short_description: Merge sink. One writer. Receipts, not a flagship.
 Canonical merge sink for holographic and receipt Spaces. **One writer.**
 Packet sources stay listed. This Space does not delete them.
 
+Only Spaces that exist on the Hub are packet sources (`GET /api/packets`). On
+2026-09-29 six retired ids that are absent from the SZLHOLDINGS Space list were
+removed: `holographic`, `anatomy`, `cosmos`, `lyte-services`, `szl-real-estate`
+and `szl-sovereign-os`. Their packets now fail closed as unknown. This
+repository's own standalone Space (`evidence-studio`) is also absent from the
+Hub; this source makes no claim that it is running.
+
 POST `/api/merge` accepts a known packet id and returns an UNSIGNED-honest
 receipt. Accepted writes are serialized on the server-authoritative ledger
 head. A nonempty `prev_hash` must be exact canonical lowercase SHA-256 hex and
