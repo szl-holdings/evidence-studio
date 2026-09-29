@@ -18,19 +18,16 @@ GENESIS = "0" * 64
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 MAX_REQUEST_BYTES = 16384
 
+# Packet sources are Spaces that exist on the Hub. A retired Space is not a
+# source: its packets fail closed as unknown. Six retired ids were removed on
+# 2026-09-29 (absent from the SZLHOLDINGS Space list); see the README.
 SOURCES = (
-    {"id": "holographic", "hub": "SZLHOLDINGS/holographic", "class": "hologram"},
-    {"id": "anatomy", "hub": "SZLHOLDINGS/anatomy", "class": "hologram"},
     {"id": "szl-khipu", "hub": "SZLHOLDINGS/szl-khipu", "class": "hologram"},
-    {"id": "cosmos", "hub": "SZLHOLDINGS/cosmos", "class": "hologram"},
     {"id": "counsel", "hub": "SZLHOLDINGS/counsel", "class": "hologram"},
     {"id": "ayllu", "hub": "SZLHOLDINGS/ayllu", "class": "hologram"},
     {"id": "immune", "hub": "SZLHOLDINGS/immune", "class": "receipt"},
     {"id": "immune-lattice", "hub": "SZLHOLDINGS/immune-lattice", "class": "receipt"},
     {"id": "a11oy-factory", "hub": "SZLHOLDINGS/a11oy-factory", "class": "receipt"},
-    {"id": "lyte-services", "hub": "SZLHOLDINGS/lyte-services", "class": "receipt"},
-    {"id": "szl-real-estate", "hub": "SZLHOLDINGS/szl-real-estate", "class": "hologram"},
-    {"id": "szl-sovereign-os", "hub": "SZLHOLDINGS/szl-sovereign-os", "class": "hologram"},
 )
 KNOWN = {s["id"]: s for s in SOURCES}
 LEDGER: list[dict] = []

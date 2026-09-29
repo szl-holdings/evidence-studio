@@ -91,7 +91,7 @@ class WriterLedgerIntegrationTests(unittest.TestCase):
     def test_current_ancestry_and_authentication_work_together(self):
         status, first = self.post({"packet": "counsel", "evidence": "fixture"})
         self.assertEqual(status, 200)
-        status, second = self.post({"packet": "anatomy", "prev_hash": first["hash"]})
+        status, second = self.post({"packet": "ayllu", "prev_hash": first["hash"]})
         self.assertEqual(status, 200)
         self.assertEqual(second["decision"], "ALLOW")
         self.assert_chain(2)
@@ -99,7 +99,7 @@ class WriterLedgerIntegrationTests(unittest.TestCase):
     def test_authenticated_stale_ancestry_never_appends(self):
         self.post({"packet": "counsel"})
         before = json.dumps(sink.LEDGER, sort_keys=True)
-        status, blocked = self.post({"packet": "anatomy", "prev_hash": sink.GENESIS})
+        status, blocked = self.post({"packet": "ayllu", "prev_hash": sink.GENESIS})
         self.assertEqual(status, 200)
         self.assertEqual(blocked["decision"], "BLOCKED")
         self.assertEqual(json.dumps(sink.LEDGER, sort_keys=True), before)
@@ -152,7 +152,7 @@ class WriterLedgerIntegrationTests(unittest.TestCase):
 
     def test_empty_and_absent_preconditions_preserve_existing_semantics(self):
         self.post({"packet": "counsel"})
-        _, accepted = self.post({"packet": "anatomy", "prev_hash": ""})
+        _, accepted = self.post({"packet": "ayllu", "prev_hash": ""})
         self.assertEqual(accepted["decision"], "ALLOW")
         self.assert_chain(2)
 
@@ -185,7 +185,7 @@ class WriterLedgerIntegrationTests(unittest.TestCase):
 
         with patch.object(sink, "_sha256", side_effect=slow_hash):
             with ThreadPoolExecutor(max_workers=8) as pool:
-                results = list(pool.map(lambda n: self.post({"packet": "anatomy", "prev_hash": first["hash"], "evidence": str(n)}), range(16)))
+                results = list(pool.map(lambda n: self.post({"packet": "ayllu", "prev_hash": first["hash"], "evidence": str(n)}), range(16)))
         self.assertTrue(all(status == 200 for status, _ in results))
         self.assertEqual(sum(record["decision"] == "ALLOW" for _, record in results), 1)
         self.assertEqual(sum(record["decision"] == "BLOCKED" for _, record in results), 15)

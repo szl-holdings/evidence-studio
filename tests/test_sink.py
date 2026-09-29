@@ -36,14 +36,14 @@ class SinkTests(unittest.TestCase):
 
     def test_stale_prev_hash_cannot_fork_ledger(self):
         first = sink.merge("counsel", "first", "")
-        rec = sink.merge("anatomy", "second", sink.GENESIS)
+        rec = sink.merge("ayllu", "second", sink.GENESIS)
         self.assertEqual(rec["decision"], "BLOCKED")
         self.assertEqual(rec["prev_hash"], first["hash"])
         self.assertEqual(len(sink.LEDGER), 1)
 
     def test_exact_current_prev_hash_allows(self):
         first = sink.merge("counsel", "first", "")
-        second = sink.merge("anatomy", "second", first["hash"])
+        second = sink.merge("ayllu", "second", first["hash"])
         self.assertEqual(second["decision"], "ALLOW")
         self.assertEqual(second["prev_hash"], first["hash"])
         self.assertEqual(len(sink.LEDGER), 2)
