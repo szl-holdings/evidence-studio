@@ -18,17 +18,55 @@ GENESIS = "0" * 64
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 MAX_REQUEST_BYTES = 16384
 
-# Packet sources are Spaces that exist on the Hub. A retired Space is not a
-# source: its packets fail closed as unknown. Six retired ids were removed on
-# 2026-09-29 (absent from the SZLHOLDINGS Space list); see the README.
-SOURCES = (
-    {"id": "szl-khipu", "hub": "SZLHOLDINGS/szl-khipu", "class": "hologram"},
-    {"id": "counsel", "hub": "SZLHOLDINGS/counsel", "class": "hologram"},
-    {"id": "ayllu", "hub": "SZLHOLDINGS/ayllu", "class": "hologram"},
-    {"id": "immune", "hub": "SZLHOLDINGS/immune", "class": "receipt"},
-    {"id": "immune-lattice", "hub": "SZLHOLDINGS/immune-lattice", "class": "receipt"},
-    {"id": "a11oy-factory", "hub": "SZLHOLDINGS/a11oy-factory", "class": "receipt"},
+HUB_SPACES = Path(__file__).with_name("hub_spaces.json")
+HUB_SPACES_SCHEMA = "evidence-studio.hub-spaces/v1"
+
+# Candidate packet sources and their class. This is policy: which Spaces may
+# send packets. Existence is evidence: a candidate is a source only while the
+# generated public Hub inventory lists its Space. That observation is
+# hub_spaces.json, written by scripts/refresh_hub_spaces.py from
+# https://a11oy.net/public-inventory.json. A candidate the observation does
+# not list (a retired Space, or a private one the public inventory cannot see)
+# is not a source, and its packets fail closed as unknown.
+CANDIDATES = (
+    ("szl-khipu", "hologram"),
+    ("counsel", "hologram"),
+    ("ayllu", "hologram"),
+    ("immune", "receipt"),
+    ("immune-lattice", "receipt"),
+    ("a11oy-factory", "receipt"),
 )
+
+
+def load_observation(path: Path = HUB_SPACES) -> dict | None:
+    """Return {"observed_at", "spaces"} from hub_spaces.json, or None if unusable."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get("schema") != HUB_SPACES_SCHEMA:
+        return None
+    spaces = data.get("spaces")
+    observation = data.get("observation")
+    if not isinstance(spaces, list) or not all(isinstance(s, str) for s in spaces):
+        return None
+    if not isinstance(observation, dict) or not isinstance(observation.get("observed_at"), str):
+        return None
+    return {"observed_at": observation["observed_at"], "spaces": frozenset(spaces)}
+
+
+def derive_sources(observation: dict | None) -> tuple[dict, ...]:
+    """Candidates whose Space the observation lists. No observation, no sources."""
+    observed = observation["spaces"] if observation else frozenset()
+    return tuple(
+        {"id": ident, "hub": "SZLHOLDINGS/" + ident, "class": kind}
+        for ident, kind in CANDIDATES
+        if "SZLHOLDINGS/" + ident in observed
+    )
+
+
+OBSERVATION = load_observation()
+SOURCES = derive_sources(OBSERVATION)
 KNOWN = {s["id"]: s for s in SOURCES}
 LEDGER: list[dict] = []
 _LEDGER_LOCK = threading.Lock()
@@ -152,6 +190,7 @@ class Handler(BaseHTTPRequestHandler):
                         "bind": "BIND_AS_A11OY_PACKAGE",
                         "writer": "one",
                         "packets": len(SOURCES),
+                        "sources_observed_at": OBSERVATION["observed_at"] if OBSERVATION else None,
                         "ledger": len(LEDGER),
                         "lambda_status": "Conjecture 1",
                         "energy": None,
@@ -245,6 +284,9 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     port = int(os.environ.get("PORT", "7860"))
     httpd = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    if OBSERVATION is None:
+        print("evidence-studio: %s missing or invalid; 0 sources, every packet fails closed"
+              % HUB_SPACES.name, flush=True)
     print("evidence-studio listening 0.0.0.0:%s packets=%s" % (port, len(SOURCES)), flush=True)
     httpd.serve_forever()
 

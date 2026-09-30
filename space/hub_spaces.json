@@ -1,0 +1,38 @@
+{
+  "schema": "evidence-studio.hub-spaces/v1",
+  "generated_by": "scripts/refresh_hub_spaces.py",
+  "observation": {
+    "url": "https://a11oy.net/public-inventory.json",
+    "inventory_schema": "szl.public-hf-inventory/v4",
+    "observed_at": "2026-09-29T15:33:59Z",
+    "observation_mode": "UNAUTHENTICATED_PUBLIC_API_SNAPSHOT",
+    "content_sha256": "84a7f574e773ec31b3e8854cf3e062fb056b0e715e18ef5a2deac18c74400515",
+    "private_assets": "NOT_OBSERVED"
+  },
+  "spaces": [
+    "SZLHOLDINGS/README",
+    "SZLHOLDINGS/a11oy",
+    "SZLHOLDINGS/ayllu",
+    "SZLHOLDINGS/counsel",
+    "SZLHOLDINGS/david-leads",
+    "SZLHOLDINGS/finance",
+    "SZLHOLDINGS/holographic-unify",
+    "SZLHOLDINGS/immune",
+    "SZLHOLDINGS/immune-lattice",
+    "SZLHOLDINGS/killinchu",
+    "SZLHOLDINGS/llm-router-live",
+    "SZLHOLDINGS/lyte",
+    "SZLHOLDINGS/sentra",
+    "SZLHOLDINGS/szl-atelier",
+    "SZLHOLDINGS/szl-command-lab",
+    "SZLHOLDINGS/szl-constellation",
+    "SZLHOLDINGS/szl-forge-lab",
+    "SZLHOLDINGS/szl-frontier",
+    "SZLHOLDINGS/szl-khipu",
+    "SZLHOLDINGS/szl-model-inference-lab",
+    "SZLHOLDINGS/terra",
+    "SZLHOLDINGS/the-grid",
+    "SZLHOLDINGS/vertical-services",
+    "SZLHOLDINGS/yarqa"
+  ]
+}
