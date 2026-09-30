@@ -16,12 +16,29 @@ short_description: Merge sink. One writer. Receipts, not a flagship.
 Canonical merge sink for holographic and receipt Spaces. **One writer.**
 Packet sources stay listed. This Space does not delete them.
 
-Only Spaces that exist on the Hub are packet sources (`GET /api/packets`). On
-2026-09-29 six retired ids that are absent from the SZLHOLDINGS Space list were
-removed: `holographic`, `anatomy`, `cosmos`, `lyte-services`, `szl-real-estate`
-and `szl-sovereign-os`. Their packets now fail closed as unknown. This
-repository's own standalone Space (`evidence-studio`) is also absent from the
-Hub; this source makes no claim that it is running.
+Only Spaces that exist on the Hub are packet sources (`GET /api/packets`).
+`space/server.py` holds the candidate list and each candidate's class; that is
+policy. Existence is read from the generated public Hub inventory that
+`szl-holdings/a11oy-net` publishes at `https://a11oy.net/public-inventory.json`.
+`scripts/refresh_hub_spaces.py` fetches it, checks its schema, organization,
+space count and `content_sha256`, and writes the public Space ids with that
+observation's `observed_at` to `space/hub_spaces.json`. The sink reads only
+that file. A candidate it does not list is not a source, and its packets fail
+closed as unknown. So does every packet when the file is missing or invalid.
+`/healthz` reports the observation as `sources_observed_at`.
+
+The public inventory does not observe private Spaces (`private_assets:
+NOT_OBSERVED`). A private candidate, such as `a11oy-factory` in the
+2026-09-29T15:33:59Z observation, therefore fails closed until the inventory
+lists it. On 2026-09-29 six retired ids were also dropped from the candidate
+list: `holographic`, `anatomy`, `cosmos`, `lyte-services`, `szl-real-estate`
+and `szl-sovereign-os`. This repository's own standalone Space
+(`evidence-studio`) is absent from the Hub; this source makes no claim that it
+is running.
+
+To refresh the observation, run `python scripts/refresh_hub_spaces.py` and
+commit `space/hub_spaces.json`. `--check` exits 1 when the committed file no
+longer matches the live inventory, and writes nothing. CI never fetches it.
 
 POST `/api/merge` accepts a known packet id and returns an UNSIGNED-honest
 receipt. Accepted writes are serialized on the server-authoritative ledger
