@@ -153,7 +153,7 @@ def merge(packet: str, evidence: str, prev: str) -> dict:
         }
         body["hash"] = _sha256(body)
         LEDGER.append(body)
-        return body
+        return body.copy()
 
 
 class Handler(BaseHTTPRequestHandler):

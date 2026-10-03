@@ -48,6 +48,20 @@ class SinkTests(unittest.TestCase):
         self.assertEqual(second["prev_hash"], first["hash"])
         self.assertEqual(len(sink.LEDGER), 2)
 
+    def test_returned_receipt_cannot_mutate_stored_ledger(self):
+        receipt = sink.merge("counsel", "original", "")
+        original_hash = receipt["hash"]
+
+        receipt["evidence"] = "changed after merge"
+        receipt["hash"] = "f" * 64
+
+        self.assertEqual(sink.LEDGER[0]["evidence"], "original")
+        self.assertEqual(sink.LEDGER[0]["hash"], original_hash)
+        next_receipt = sink.merge("ayllu", "next", original_hash)
+        self.assertEqual(next_receipt["decision"], "ALLOW")
+        self.assertEqual(next_receipt["prev_hash"], original_hash)
+        self.assertEqual(len(sink.LEDGER), 2)
+
     def test_concurrent_merges_form_one_linear_chain(self):
         results = []
         results_lock = threading.Lock()
