@@ -47,6 +47,21 @@ def rehash(inventory):
     return inventory
 
 
+def malformed_metadata_inventories():
+    """Hash-consistent JSON metadata must still satisfy its declared value types."""
+    cases = []
+    for schema in ([], {}, ["szl.public-hf-inventory/v4"]):
+        inventory = synthetic_inventory(["SZLHOLDINGS/counsel"])
+        inventory["schema"] = schema
+        cases.append(("schema=" + repr(schema), rehash(inventory)))
+    for count, ids in ((True, ["SZLHOLDINGS/counsel"]), (False, []),
+                       (1.0, ["SZLHOLDINGS/counsel"]), (0.0, [])):
+        inventory = synthetic_inventory(ids)
+        inventory["counts"]["spaces"] = count
+        cases.append(("count=" + repr(count), rehash(inventory)))
+    return cases
+
+
 class CommittedObservationTests(unittest.TestCase):
     def setUp(self):
         self.document = json.loads((ROOT / "space" / "hub_spaces.json").read_text(encoding="utf-8"))
@@ -205,6 +220,32 @@ class GeneratorTests(unittest.TestCase):
             with patch.object(refresh, "OUTPUT", target), patch("sys.stderr"):
                 self.assertEqual(refresh.main(["--inventory", str(bad)]), 2)
             self.assertFalse(target.exists())
+
+    def test_malformed_metadata_raises_inventory_error(self):
+        for label, inventory in malformed_metadata_inventories():
+            with self.subTest(label=label), self.assertRaises(refresh.InventoryError):
+                refresh.derive(inventory)
+
+    def test_malformed_metadata_preserves_existing_observation_in_both_modes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "inventory.json"
+            target = Path(directory) / "hub_spaces.json"
+            before = refresh.render(refresh.derive(synthetic_inventory(self.IDS))).encode()
+            for label, inventory in malformed_metadata_inventories():
+                source.write_text(json.dumps(inventory), encoding="utf-8")
+                for mode in ([], ["--check"]):
+                    with self.subTest(label=label, mode=mode):
+                        target.write_bytes(before)
+                        with patch.object(refresh, "OUTPUT", target), patch("sys.stdout"), patch("sys.stderr"):
+                            self.assertEqual(refresh.main(["--inventory", str(source), *mode]), 2)
+                        self.assertEqual(target.read_bytes(), before)
+
+    def test_zero_and_one_integer_counts_remain_valid(self):
+        for ids in ([], ["SZLHOLDINGS/counsel"]):
+            with self.subTest(ids=ids):
+                inventory = synthetic_inventory(ids)
+                self.assertIs(type(inventory["counts"]["spaces"]), int)
+                self.assertEqual(refresh.derive(inventory)["spaces"], ids)
 
     def test_main_writes_then_check_reports_current_and_stale(self):
         with tempfile.TemporaryDirectory() as directory:

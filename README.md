@@ -52,6 +52,8 @@ is running.
 To refresh the observation, run `python scripts/refresh_hub_spaces.py` and
 commit `space/hub_spaces.json`. `--check` exits 1 when the committed file no
 longer matches the live inventory, and writes nothing. CI never fetches it.
+The schema must be a string and the Space count an integer (not a boolean or
+floating-point value). Invalid metadata exits 2 and preserves the saved observation.
 
 POST `/api/merge` accepts a known packet id and returns an UNSIGNED-honest
 receipt. Accepted writes are serialized on the server-authoritative ledger

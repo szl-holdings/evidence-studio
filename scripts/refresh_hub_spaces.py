@@ -54,7 +54,7 @@ def derive(inventory: Any, url: str = INVENTORY_URL) -> dict[str, Any]:
     if not isinstance(inventory, dict):
         raise InventoryError("inventory is not a JSON object")
     schema = inventory.get("schema")
-    if schema not in SUPPORTED_INVENTORY_SCHEMAS:
+    if not isinstance(schema, str) or schema not in SUPPORTED_INVENTORY_SCHEMAS:
         raise InventoryError(f"unsupported inventory schema: {schema!r}")
     if inventory.get("organization") != ORGANIZATION:
         raise InventoryError(f"inventory organization is not {ORGANIZATION}")
@@ -78,8 +78,9 @@ def derive(inventory: Any, url: str = INVENTORY_URL) -> dict[str, Any]:
     if len(ids) != len(set(ids)):
         raise InventoryError("inventory lists a space id twice")
     counts = inventory.get("counts")
-    if not isinstance(counts, dict) or counts.get("spaces") != len(ids):
-        raise InventoryError("inventory counts.spaces does not match resources.spaces")
+    count = counts.get("spaces") if isinstance(counts, dict) else None
+    if type(count) is not int or count != len(ids):
+        raise InventoryError("inventory counts.spaces must be an integer matching resources.spaces")
 
     boundaries = inventory.get("claim_boundaries")
     private_assets = boundaries.get("private_assets") if isinstance(boundaries, dict) else None
