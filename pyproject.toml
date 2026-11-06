@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evidence-studio"
+version = "0.1.0"
+description = "Canonical merge sink for holographic and receipt Spaces. One writer. Bind as an a11oy package."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [{ name = "Stephen Lutar", email = "stephen@szlholdings.com" }]
+dependencies = []
+
+[project.urls]
+Homepage = "https://a-11-oy.com"
+Repository = "https://github.com/szl-holdings/evidence-studio"
+
+[tool.setuptools]
+packages = ["space"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["build", "dist", ".venv", "node_modules"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
