@@ -98,3 +98,5 @@ concurrent accepted writes from forking this in-memory ledger; it does not
 coordinate multiple processes or provide durable storage. Authentication and
 ancestry are both checked before an accepted append. The HTTP contract and
 receipt hash format are unchanged; direct non-string ancestry also fails closed.
+
+Estate on Hugging Face: models, datasets and Spaces are published under the [SZLHOLDINGS](https://huggingface.co/SZLHOLDINGS) org.
