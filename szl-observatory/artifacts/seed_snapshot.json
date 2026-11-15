@@ -1,0 +1,103 @@
+{
+  "schema_version": "szl.observatory.snapshot/v1",
+  "generated_at": "2026-11-15T21:38:14.167095Z",
+  "metrics": [
+    {
+      "name": "repositories",
+      "value": 153,
+      "unit": "count",
+      "source": "github",
+      "observed_at": "2026-11-15T21:38:14.167095Z",
+      "window_start": null,
+      "window_end": null,
+      "evidence_url": "https://github.com/szl-holdings",
+      "status": "estimated",
+      "note": "Seed baseline; validate against the live organization census."
+    },
+    {
+      "name": "models",
+      "value": 79,
+      "unit": "count",
+      "source": "huggingface",
+      "observed_at": "2026-11-15T21:38:14.167095Z",
+      "window_start": null,
+      "window_end": null,
+      "evidence_url": "https://huggingface.co/SZLHOLDINGS",
+      "status": "estimated",
+      "note": "Seed baseline; validate against the live organization inventory."
+    },
+    {
+      "name": "datasets",
+      "value": 49,
+      "unit": "count",
+      "source": "huggingface",
+      "observed_at": "2026-11-15T21:38:14.167095Z",
+      "window_start": null,
+      "window_end": null,
+      "evidence_url": "https://huggingface.co/SZLHOLDINGS",
+      "status": "estimated",
+      "note": null
+    },
+    {
+      "name": "spaces",
+      "value": 46,
+      "unit": "count",
+      "source": "huggingface",
+      "observed_at": "2026-11-15T21:38:14.167095Z",
+      "window_start": null,
+      "window_end": null,
+      "evidence_url": "https://huggingface.co/SZLHOLDINGS",
+      "status": "estimated",
+      "note": null
+    },
+    {
+      "name": "payment_required_challenges",
+      "value": 23800,
+      "unit": "count",
+      "source": "cloudflare",
+      "observed_at": "2026-11-15T21:38:14.167095Z",
+      "window_start": null,
+      "window_end": null,
+      "evidence_url": "https://a-11-oy.com/",
+      "status": "estimated",
+      "note": "Reported operating baseline; reconcile exact dashboard window."
+    },
+    {
+      "name": "settlements",
+      "value": 0,
+      "unit": "count",
+      "source": "cloudflare",
+      "observed_at": "2026-11-15T21:38:14.167095Z",
+      "window_start": null,
+      "window_end": null,
+      "evidence_url": "https://a-11-oy.com/",
+      "status": "observed",
+      "note": "Reported operating baseline; verify against settlement records."
+    }
+  ],
+  "monetization": {
+    "payment_required": 23800,
+    "authorized": null,
+    "settled": 0,
+    "recognized_revenue_usd": 0.0,
+    "source": "cloudflare",
+    "observed_at": "2026-11-15T21:38:14.167095Z",
+    "evidence_url": "https://a-11-oy.com/"
+  },
+  "x402": {
+    "protocol": "x402",
+    "version": "coinbase-v2",
+    "state": "blocked",
+    "challenges": 23800,
+    "authorizations": null,
+    "settlements": 0,
+    "failure_reason": "Settlement wire compatibility must be verified against the live Coinbase x402 v2 payload format.",
+    "observed_at": "2026-11-15T21:38:14.167095Z",
+    "evidence_url": "https://a-11-oy.com/"
+  },
+  "provenance": [
+    "https://github.com/szl-holdings",
+    "https://huggingface.co/SZLHOLDINGS",
+    "https://a-11-oy.com"
+  ]
+}
