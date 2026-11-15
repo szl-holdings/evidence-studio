@@ -1,0 +1,10 @@
+{
+  "protocol": "x402",
+  "version": "coinbase-v2",
+  "state": "blocked",
+  "challenge_count": 23800,
+  "authorization_count": null,
+  "settlement_count": 0,
+  "recognized_revenue_usd": 0.0,
+  "failure_reason": "Wire compatibility must be verified against a live Coinbase x402 v2 payload before enabling monetization."
+}
