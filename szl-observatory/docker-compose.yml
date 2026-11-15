@@ -1,0 +1,9 @@
+services:
+  observatory:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      SZL_SNAPSHOT_FILE: /data/snapshot.json
+    volumes:
+      - ./artifacts:/data:ro
