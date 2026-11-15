@@ -12,14 +12,16 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from .models import Metric
 
 
 def _get_json(url: str, token: str | None = None) -> Any:
-    headers = {"Accept": "application/vnd.github+json" if "github.com" in url else "application/json"}
+    hostname = (urlparse(url).hostname or "").lower()
+    is_github = hostname == "github.com" or hostname.endswith(".github.com")
+    headers = {"Accept": "application/vnd.github+json" if is_github else "application/json"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     request = Request(url, headers=headers)
