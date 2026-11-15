@@ -61,3 +61,5 @@ That is a strong differentiator. It is not yet safe to call it “one of one” 
 4. Add the Lean/Lake proof gate and receipt-chain fields to the train/evaluate/publish job.
 5. Integrate the Observatory API into a dedicated A11oy service or a reviewed Evidence Studio deployment, keeping the current Space entrypoint stable until that integration is tested.
 6. Run one synthetic customer pilot, then one real customer pilot with deletion/rollback exercised before enabling monetization.
+
+The complete authenticated metadata baseline is stored in [`repo_inventory.json`](./repo_inventory.json) so later audits can diff repository visibility, archival state, default branches, and code-search coverage.
