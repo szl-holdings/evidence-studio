@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from .models import HealthResponse, Snapshot
+from .receipts import make_receipt
 from .service import load_snapshot
 
 
@@ -24,6 +25,7 @@ def create_app(snapshot: Snapshot | None = None) -> FastAPI:
         current = load_snapshot(Path(os.environ["SZL_SNAPSHOT_FILE"]))
     else:
         current = load_snapshot()
+    receipt = make_receipt(current.model_dump(mode="json"))
 
     @app.get("/healthz", response_model=HealthResponse)
     def healthz() -> HealthResponse:
@@ -57,6 +59,10 @@ def create_app(snapshot: Snapshot | None = None) -> FastAPI:
         if current.x402 is None:
             raise HTTPException(status_code=404, detail="x402 state unavailable")
         return current.x402.model_dump(mode="json")
+
+    @app.get("/api/v1/receipt")
+    def get_receipt() -> dict:
+        return receipt
 
     packaged_frontend = Path(__file__).resolve().parent / "frontend" / "index.html"
     source_frontend = Path(__file__).resolve().parents[2] / "frontend" / "index.html"
