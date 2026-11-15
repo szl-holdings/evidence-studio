@@ -1,0 +1,47 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+name: szl-observatory-ci
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "szl-observatory/**"
+      - ".github/workflows/szl-observatory-ci.yml"
+  pull_request:
+    paths:
+      - "szl-observatory/**"
+      - ".github/workflows/szl-observatory-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: szl-observatory
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+      - name: Install package and build tools
+        run: python -m pip install --upgrade pip build twine
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Verify package imports
+        run: python -c "import szl_observatory; print(szl_observatory.__file__)"
+      - name: Run package tests
+        run: python -m unittest discover -s tests -v
+      - name: Build clean distributions
+        run: |
+          rm -rf dist
+          python -m build --sdist --wheel
+      - name: Verify distribution metadata
+        run: python -m twine check --strict dist/*
