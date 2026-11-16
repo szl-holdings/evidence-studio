@@ -1,0 +1,100 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+name: publish szl-observatory to PyPI
+
+# This is the only publish path. A GitHub Release tagged v<project.version>
+# runs the build gate, then waits on the protected pypi environment and PyPI
+# Trusted Publishing (OIDC). Pull-request and push validation is handled by
+# szl-observatory-ci.yml and never publishes.
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+concurrency:
+  group: szl-observatory-pypi-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and gate szl-observatory
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: szl-observatory
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9cae0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+      - name: Install build tooling
+        run: python -m pip install --upgrade pip build twine
+      - name: Bind release tag to package version
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"]
+          expected = f"v{version}"
+          actual = os.environ["RELEASE_TAG"]
+          if actual != expected:
+              raise SystemExit(f"release tag {actual!r} does not match package version {expected!r}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"version={version}\n")
+          PY
+      - name: Install test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run package tests
+        run: python -m unittest discover -s tests -v
+      - name: Build clean distributions
+        run: |
+          rm -rf dist
+          python -m build --sdist --wheel
+      - name: Verify distribution metadata
+        run: python -m twine check --strict dist/*
+      - name: Upload gated distributions
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: szl-observatory-dists
+          path: szl-observatory/dist/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish szl-observatory to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: pypi
+      url: https://pypi.org/project/szl-observatory/${{ needs.build.outputs.version }}/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Download gated distributions
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: szl-observatory-dists
+          path: dist
+      - name: Publish with PyPI Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          packages-dir: dist/
+          attestations: true
+          verify-metadata: true
+          skip-existing: false
+          print-hash: true
